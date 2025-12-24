@@ -14,6 +14,14 @@ const App: React.FC = () => {
   // Theme State
   const [darkMode, setDarkMode] = useState<boolean>(false);
 
+  // Load API Key from local storage on mount
+  useEffect(() => {
+    const storedKey = localStorage.getItem('gemini_api_key');
+    if (storedKey) {
+      setApiKey(storedKey);
+    }
+  }, []);
+
   // Toggle Theme Effect
   useEffect(() => {
     if (darkMode) {
@@ -25,6 +33,16 @@ const App: React.FC = () => {
 
   const toggleTheme = () => {
     setDarkMode(!darkMode);
+  };
+
+  const handleSaveApiKey = (key: string) => {
+    setApiKey(key);
+    localStorage.setItem('gemini_api_key', key);
+  };
+
+  const handleRemoveApiKey = () => {
+    setApiKey('');
+    localStorage.removeItem('gemini_api_key');
   };
   
   const [processingState, setProcessingState] = useState<ProcessingState>({
@@ -112,7 +130,8 @@ const App: React.FC = () => {
 
       <Sidebar 
         apiKey={apiKey}
-        setApiKey={setApiKey}
+        onSaveApiKey={handleSaveApiKey}
+        onRemoveApiKey={handleRemoveApiKey}
         files={files}
         onFileChange={handleFileChange}
         onRemoveFile={handleRemoveFile}
@@ -129,7 +148,7 @@ const App: React.FC = () => {
       <main className={`
         flex-1 w-full md:ml-80 transition-all duration-300
         ${isSidebarOpen ? 'overflow-hidden' : 'overflow-y-auto'}
-        pt-16 md:pt-0 p-4 md:p-10
+        pt-20 md:pt-12 p-4 md:p-14
       `}>
         <div className="max-w-7xl mx-auto">
           <header className="mb-8 md:mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
