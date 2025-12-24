@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Chat } from "@google/genai";
-import { CheckCircle2, List, FileText } from 'lucide-react';
+import { CheckCircle2, List, FileText, Copy, Download, Check } from 'lucide-react';
 import { AnalysisResult, ProcessingState } from '../types';
 import ChatSection from './ChatSection';
 
@@ -12,6 +12,29 @@ interface ResultSectionProps {
 }
 
 const ResultSection: React.FC<ResultSectionProps> = ({ processingState, result, chatSession }) => {
+  const [isCopied, setIsCopied] = useState(false);
+
+  const handleCopy = async () => {
+    if (!result?.detailedSummary) return;
+    try {
+      await navigator.clipboard.writeText(result.detailedSummary);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
+
+  const handleDownload = () => {
+    if (!result?.detailedSummary) return;
+    const element = document.createElement("a");
+    const file = new Blob([result.detailedSummary], {type: 'text/markdown;charset=utf-8'});
+    element.href = URL.createObjectURL(file);
+    element.download = `meeting_summary_${new Date().toISOString().slice(0,10)}.md`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
   
   if (processingState.status === 'idle') {
     return (
@@ -94,9 +117,31 @@ const ResultSection: React.FC<ResultSectionProps> = ({ processingState, result, 
 
           {/* Detailed Summary Card */}
           <section className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden transform transition-all hover:shadow-2xl">
-            <div className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700 px-6 py-4 flex items-center gap-3 transition-colors">
-              <FileText className="text-slate-600 dark:text-gray-300 w-5 h-5" />
-              <h3 className="text-lg font-bold text-slate-800 dark:text-gray-100">상세 줄글 요약</h3>
+            <div className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700 px-6 py-4 flex items-center justify-between transition-colors">
+              <div className="flex items-center gap-3">
+                <FileText className="text-slate-600 dark:text-gray-300 w-5 h-5" />
+                <h3 className="text-lg font-bold text-slate-800 dark:text-gray-100">상세 줄글 요약</h3>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2">
+                <button
+                    onClick={handleCopy}
+                    disabled={!result?.detailedSummary}
+                    className="p-2 rounded-lg hover:bg-white dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 transition-all border border-transparent hover:border-gray-200 dark:hover:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="클립보드에 복사"
+                >
+                    {isCopied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                </button>
+                <button
+                    onClick={handleDownload}
+                    disabled={!result?.detailedSummary}
+                    className="p-2 rounded-lg hover:bg-white dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 transition-all border border-transparent hover:border-gray-200 dark:hover:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="파일로 저장 (.md)"
+                >
+                    <Download className="w-4 h-4" />
+                </button>
+              </div>
             </div>
             <div className="p-6 md:p-8 prose prose-slate dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 leading-relaxed transition-colors">
               {result?.detailedSummary ? (

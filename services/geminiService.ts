@@ -2,14 +2,20 @@ import { GoogleGenAI, Chat } from "@google/genai";
 import { AnalysisResult, AudioInput } from "../types";
 
 const SYSTEM_INSTRUCTION = `
-반드시 **한국어(Korean)**로 답변할 것.
-출력 형식을 다음과 같이 엄격히 지킬 것:
+당신은 회의록 전문 AI 비서입니다. 제공된 오디오 파일을 분석하여 다음 형식으로 **반드시 한국어**로 요약하세요.
+
+출력 형식:
 📌 3줄 핵심 요약
-(첫 번째 요약)
-(두 번째 요약)
-(세 번째 요약)
+- (핵심 결론 1)
+- (핵심 결론 2)
+- (핵심 결론 3)
+
 📝 상세 요약
-(전체 내용을 흐름에 따라 상세하게 줄글로 작성)
+(회의의 시작부터 끝까지 주요 논의 사항, 결정 사항, 향후 계획 등을 포함하여 줄글 형태로 상세히 작성)
+
+**주의사항:**
+1. 불필요한 인사말이나 서론은 생략하고 본론만 작성하세요.
+2. "📌 3줄 핵심 요약"과 "📝 상세 요약" 헤더를 정확히 사용하세요.
 `;
 
 export const fileToBase64 = (file: File): Promise<string> => {
@@ -31,6 +37,9 @@ export const analyzeAudio = async (
   audioFiles: AudioInput[]
 ): Promise<AnalysisResult> => {
   
+  if (!apiKey) throw new Error("API Key가 필요합니다.");
+  if (audioFiles.length === 0) throw new Error("분석할 오디오 파일이 없습니다.");
+
   // Initialize the client with the user-provided key
   const ai = new GoogleGenAI({ apiKey });
 
@@ -53,21 +62,36 @@ export const analyzeAudio = async (
       contents: { parts },
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        temperature: 0.3, // Lower temperature for more factual summaries
+        temperature: 0.3,
       }
     });
 
     const text = response.text || "";
+    if (!text) {
+      throw new Error("AI가 응답을 생성하지 못했습니다. (빈 응답)");
+    }
+    
     return parseResponse(text);
 
   } catch (error: any) {
     console.error("Gemini API Error:", error);
-    throw new Error(error.message || "AI 분석 중 오류가 발생했습니다.");
+    let errorMsg = "AI 분석 중 오류가 발생했습니다.";
+    
+    if (error.message?.includes("API key not valid")) {
+      errorMsg = "API Key가 유효하지 않습니다. 다시 확인해주세요.";
+    } else if (error.message?.includes("Mime type is required")) {
+      errorMsg = "지원되지 않는 오디오 형식이거나 MIME Type 오류입니다.";
+    } else if (error.message?.includes("fetch failed")) {
+      errorMsg = "네트워크 연결을 확인하거나, API Key에 과금 프로젝트가 연결되었는지 확인하세요.";
+    } else {
+      errorMsg = error.message;
+    }
+    
+    throw new Error(errorMsg);
   }
 };
 
 const parseResponse = (text: string): AnalysisResult => {
-  // Simple parser based on the requested output format
   const lines = text.split('\n');
   const summary3Lines: string[] = [];
   let detailedSummary = "";
@@ -87,7 +111,7 @@ const parseResponse = (text: string): AnalysisResult => {
 
     if (captureMode === '3lines') {
       if (line.length > 0) {
-        // Remove bullet points if the model adds them despite instructions, or just push logic
+        // Remove common list markers
         const cleaned = line.replace(/^[-*•\d\.]+\s*/, '').trim();
         if (cleaned) summary3Lines.push(cleaned);
       }
@@ -96,13 +120,13 @@ const parseResponse = (text: string): AnalysisResult => {
     }
   }
 
-  // Fallback if parsing fails but text exists (e.g. model didn't follow exact format)
-  if (summary3Lines.length === 0 && detailedSummary.length === 0 && text.length > 0) {
-    detailedSummary = text;
+  // Fallback: if parsing failed but we have text, treat it as detailed summary
+  if (summary3Lines.length === 0 && !detailedSummary.trim()) {
+     detailedSummary = text;
   }
 
   return {
-    summary3Lines: summary3Lines.slice(0, 3), // Ensure max 3
+    summary3Lines: summary3Lines.slice(0, 3), 
     detailedSummary: detailedSummary.trim()
   };
 };
@@ -120,7 +144,7 @@ export const createChatSession = (
         data: audio.base64
       }
     })),
-    { text: "이제부터 업로드된 모든 오디오 파일들의 내용에 기반하여 통합적으로 질문에 답변해줘." }
+    { text: "이제부터 위 오디오 파일들의 내용에 기반하여 질문에 답변해줘." }
   ];
 
   return ai.chats.create({
@@ -132,7 +156,7 @@ export const createChatSession = (
       },
       {
         role: 'model',
-        parts: [{ text: "네, 알겠습니다. 업로드된 모든 오디오 파일들의 내용을 파악했습니다. 궁금한 점을 물어보시면 통합하여 답변해 드리겠습니다." }]
+        parts: [{ text: "네, 회의 내용을 모두 숙지했습니다. 궁금한 점을 물어보세요." }]
       }
     ],
   });

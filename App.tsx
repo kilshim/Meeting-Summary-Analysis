@@ -6,6 +6,23 @@ import ResultSection from './components/ResultSection';
 import { fileToBase64, analyzeAudio, createChatSession } from './services/geminiService';
 import { AnalysisResult, ProcessingState, AudioInput } from './types';
 
+// Helper to deduce MIME type from extension if browser fails to detect it
+const getMimeType = (file: File): string => {
+  if (file.type && file.type !== "") return file.type;
+  
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'mp3': return 'audio/mpeg';
+    case 'wav': return 'audio/wav';
+    case 'm4a': return 'audio/mp4'; // Gemini often prefers audio/mp4 for m4a
+    case 'aac': return 'audio/aac';
+    case 'ogg': return 'audio/ogg';
+    case 'flac': return 'audio/flac';
+    case 'webm': return 'audio/webm';
+    default: return 'application/octet-stream';
+  }
+};
+
 const App: React.FC = () => {
   const [apiKey, setApiKey] = useState<string>('');
   const [files, setFiles] = useState<File[]>([]);
@@ -87,7 +104,7 @@ const App: React.FC = () => {
       
       const audioInputPromises: Promise<AudioInput>[] = files.map(async (file) => ({
         base64: await fileToBase64(file),
-        mimeType: file.type
+        mimeType: getMimeType(file)
       }));
 
       const audioInputs = await Promise.all(audioInputPromises);
@@ -102,9 +119,10 @@ const App: React.FC = () => {
       setProcessingState({ status: 'completed', message: '분석 완료' });
 
     } catch (error: any) {
+      console.error("Analysis Error:", error);
       setProcessingState({ 
         status: 'error', 
-        message: error.message || '알 수 없는 오류가 발생했습니다.' 
+        message: error.message || '분석 중 알 수 없는 오류가 발생했습니다. 파일 형식이나 API Key를 확인해주세요.' 
       });
     }
   };
