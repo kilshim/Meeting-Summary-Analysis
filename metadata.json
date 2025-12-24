@@ -1,0 +1,5 @@
+{
+  "name": "AI 회의 요약 대시보드",
+  "description": "오디오 파일을 업로드하여 회의 내용을 3줄 요약과 상세 줄글 요약으로 분석해주는 대시보드입니다.",
+  "requestFramePermissions": []
+}
