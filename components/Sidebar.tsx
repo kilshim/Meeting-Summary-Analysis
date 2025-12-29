@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Key, UploadCloud, Play, FileAudio, Moon, Sun, X, RotateCcw, Save, Trash2, ExternalLink, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Key, UploadCloud, Play, FileAudio, Moon, Sun, X, RotateCcw, Save, Trash2, ExternalLink, HelpCircle, ChevronDown, ChevronUp, Globe } from 'lucide-react';
 
 interface SidebarProps {
   apiKey: string;
@@ -40,9 +40,13 @@ const Sidebar: React.FC<SidebarProps> = ({
     setInputValue(apiKey);
   }, [apiKey]);
 
-  const isReady = apiKey.length > 0 && files.length > 0;
+  const isReady = (apiKey.length > 0 || inputValue.trim().length > 0) && files.length > 0;
 
   const handleAnalyzeClick = () => {
+    // If not saved but input has value, use that
+    if (!apiKey && inputValue.trim()) {
+      onSaveApiKey(inputValue.trim());
+    }
     onAnalyze();
     if (window.innerWidth < 768) {
       onClose();
@@ -287,6 +291,20 @@ const Sidebar: React.FC<SidebarProps> = ({
               </>
             )}
           </button>
+
+          {/* User Requested Link Footer */}
+          <div className="pt-4 border-t border-white/10 text-center">
+            <a 
+              href="https://xn--design-hl6wo12cquiba7767a.com/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-xs text-teal-300 hover:text-white transition-colors py-2 px-4 rounded-lg hover:bg-white/5"
+            >
+              <Globe className="w-3 h-3" />
+              <span>떨림과울림Design.com</span>
+              <ExternalLink className="w-2.5 h-2.5 opacity-50" />
+            </a>
+          </div>
         </div>
       </aside>
     </>
